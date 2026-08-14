@@ -5,58 +5,75 @@ on:
     branches: [ main ]
     paths-ignore:
       - 'kubernetes/deployment.yaml'
+
   pull_request:
     branches: [ main ]
 
 jobs:
+
   test:
     name: Unit Testing
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - run: npm ci
       - run: npm test || echo "No tests found"
+
 
   lint:
     name: Static Code Analysis
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - run: npm ci
       - run: npm run lint
+
 
   build:
     name: Build
     runs-on: ubuntu-latest
+
     needs: [test, lint]
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
       - run: npm ci
       - run: npm run build
+
       - uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: dist/
 
+
   docker:
     name: Docker Build and Push
     runs-on: ubuntu-latest
+
     needs: [build]
 
     env:
-      IMAGE_NAME: shaileshhegde19/tic-toc-toe
+      IMAGE_NAME: shaileshhegde19/tic-tac-toe
 
     outputs:
       image_tag: ${{ steps.set_output.outputs.image_tag }}
@@ -115,41 +132,43 @@ jobs:
         run: |
           echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
- update-k8s:
-  name: Update Kubernetes Deployment
-  runs-on: ubuntu-latest
-  needs: [docker]
 
-  if: github.ref == 'refs/heads/main'
+  update-k8s:
+    name: Update Kubernetes Deployment
+    runs-on: ubuntu-latest
 
-  steps:
-    - uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+    needs: [docker]
 
-    - name: Update deployment image
-      run: |
-        NEW_IMAGE="shaileshhegde19/tic-toc-toe:sha-${GITHUB_SHA}"
+    if: github.ref == 'refs/heads/main'
 
-        sed -i "s|^[[:space:]]*image:.*|        image: ${NEW_IMAGE}|g" \
-          kubernetes/deployment.yaml
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-        echo "Updated image:"
-        echo "$NEW_IMAGE"
+      - name: Update deployment image
+        run: |
+          NEW_IMAGE="docker.io/shaileshhegde19/tic-tac-toe:sha-${GITHUB_SHA}"
 
-    - name: Show deployment change
-      run: |
-        git diff -- kubernetes/deployment.yaml
+          sed -i "s|^[[:space:]]*image:.*|        image: ${NEW_IMAGE}|g" \
+            kubernetes/deployment.yaml
 
-    - name: Commit deployment change
-      run: |
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
+          echo "Updated image:"
+          echo "$NEW_IMAGE"
 
-        git add kubernetes/deployment.yaml
+      - name: Show deployment change
+        run: |
+          git diff -- kubernetes/deployment.yaml
 
-        git commit \
-          -m "Update image to ${GITHUB_SHA} [skip ci]" \
-          || echo "No changes to commit"
+      - name: Commit deployment change
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
 
-        git push
+          git add kubernetes/deployment.yaml
+
+          git commit \
+            -m "Update image to ${GITHUB_SHA} [skip ci]" \
+            || echo "No changes to commit"
+
+          git push

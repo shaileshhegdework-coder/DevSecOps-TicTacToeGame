@@ -20,9 +20,7 @@ spec:
     spec:
       containers:
         - name: tic-tac-toe
-
-        image: docker.io/shaileshhegde19/tic-tac-toe:sha-22bc441ca49e9656cb5c244150a5b32359f887d9
-
+          image: docker.io/shaileshhegde19/tic-tac-toe:sha-22bc441ca49e9656cb5c244150a5b32359f887d9
           imagePullPolicy: Always
 
           ports:
@@ -32,7 +30,6 @@ spec:
             limits:
               cpu: "0.5"
               memory: "512Mi"
-
             requests:
               cpu: "0.2"
               memory: "256Mi"

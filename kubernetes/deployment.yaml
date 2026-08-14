@@ -21,7 +21,7 @@ spec:
       containers:
         - name: tic-tac-toe
 
-          image: docker.io/shaileshhegde19/tic-toc-toe:sha-7f7daba268a72076747d4a454b6b9fb90f6e4e8d
+        image: docker.io/shaileshhegde19/tic-tac-toe:sha-22bc441ca49e9656cb5c244150a5b32359f887d9
 
           imagePullPolicy: Always
 

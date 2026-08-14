@@ -54,59 +54,57 @@ jobs:
     name: Docker Build and Push
     runs-on: ubuntu-latest
     needs: [build]
+
     env:
-      REGISTRY: ghcr.io
+      IMAGE_NAME: shaileshhegde19/tic-toc-toe
+
     outputs:
       image_tag: ${{ steps.set_output.outputs.image_tag }}
 
     steps:
       - uses: actions/checkout@v4
 
-      # 🔥 NEW STEP (IMPORTANT)
-      - name: Convert repo name to lowercase
-        id: repo
-        run: echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - uses: actions/download-artifact@v4
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
         with:
           name: build-artifacts
           path: dist/
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Login to GHCR
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ steps.repo.outputs.repo }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
             type=sha,format=long
             type=ref,event=branch
-            latest
+            type=raw,value=latest
 
-      - name: Build image
-        uses: docker/build-push-action@v5
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: false
-          tags: ${{ steps.meta.outputs.tags }}
           load: true
+          tags: ${{ steps.meta.outputs.tags }}
 
       - name: Trivy scan
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.REGISTRY }}/${{ steps.repo.outputs.repo }}:sha-${{ github.sha }}
+          image-ref: ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
           exit-code: '0'
 
-      - name: Push image
-        uses: docker/build-push-action@v5
+      - name: Push Docker image
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -114,34 +112,44 @@ jobs:
 
       - name: Set image tag
         id: set_output
-        run: echo "image_tag=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
-
-  update-k8s:
-    name: Update Kubernetes Deployment
-    runs-on: ubuntu-latest
-    needs: [docker]
-    if: github.ref == 'refs/heads/main'
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      # 🔥 SAME LOWERCASE FIX HERE
-      - name: Convert repo name to lowercase
-        id: repo
-        run: echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-
-      - name: Update deployment
         run: |
-          NEW_IMAGE="ghcr.io/${{ steps.repo.outputs.repo }}:sha-${{ github.sha }}"
-          sed -i "s|image: .*|image: ${NEW_IMAGE}|g" kubernetes/deployment.yaml
-          echo "Updated image: $NEW_IMAGE"
+          echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
-      - name: Commit changes
-        run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add kubernetes/deployment.yaml
-          git commit -m "Update image [skip ci]" || echo "No changes"
-          git push
+ update-k8s:
+  name: Update Kubernetes Deployment
+  runs-on: ubuntu-latest
+  needs: [docker]
+
+  if: github.ref == 'refs/heads/main'
+
+  steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Update deployment image
+      run: |
+        NEW_IMAGE="shaileshhegde19/tic-toc-toe:sha-${GITHUB_SHA}"
+
+        sed -i "s|^[[:space:]]*image:.*|        image: ${NEW_IMAGE}|g" \
+          kubernetes/deployment.yaml
+
+        echo "Updated image:"
+        echo "$NEW_IMAGE"
+
+    - name: Show deployment change
+      run: |
+        git diff -- kubernetes/deployment.yaml
+
+    - name: Commit deployment change
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+        git add kubernetes/deployment.yaml
+
+        git commit \
+          -m "Update image to ${GITHUB_SHA} [skip ci]" \
+          || echo "No changes to commit"
+
+        git push

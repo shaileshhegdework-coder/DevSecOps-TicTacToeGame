@@ -1,43 +1,30 @@
-{{- if .Values.ingress.enabled -}}
+# templates/ingress.yaml
+# Ingress routes external HTTP(S) traffic (based on hostname/path) to internal Services.
+# Requires an Ingress Controller (e.g. nginx-ingress) already running in the cluster —
+# the Ingress resource itself is just a routing RULE, not the traffic handler.
+
+{{- if .Values.ingress.enabled }}
+# Wrapping the whole file in this `if` lets you toggle Ingress on/off per environment
+# just by flipping a value — e.g. disable it in a values-dev.yaml if you're only using port-forward.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "tic-tac-toe-helm.fullname" . }}
-  labels:
-    {{- include "tic-tac-toe-helm.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
+  name: {{ include "tic-tac-toe.name" . }}-ingress
   annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
+    kubernetes.io/ingress.class: {{ .Values.ingress.className }}
+    # Controller-specific tuning (rewrite rules, TLS redirects, rate limits, etc.)
+    # would also go here as extra annotations, e.g.:
+    # nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
-  {{- with .Values.ingress.className }}
-  ingressClassName: {{ . }}
-  {{- end }}
-  {{- if .Values.ingress.tls }}
-  tls:
-    {{- range .Values.ingress.tls }}
-    - hosts:
-        {{- range .hosts }}
-        - {{ . | quote }}
-        {{- end }}
-      secretName: {{ .secretName }}
-    {{- end }}
-  {{- end }}
   rules:
-    {{- range .Values.ingress.hosts }}
-    - host: {{ .host | quote }}
+    - host: {{ .Values.ingress.host }}
       http:
         paths:
-          {{- range .paths }}
-          - path: {{ .path }}
-            {{- with .pathType }}
-            pathType: {{ . }}
-            {{- end }}
+          - path: {{ .Values.ingress.path }}
+            pathType: {{ .Values.ingress.pathType }}
             backend:
               service:
-                name: {{ include "tic-tac-toe-helm.fullname" $ }}
+                name: {{ include "tic-tac-toe.name" . }}
                 port:
-                  number: {{ $.Values.service.port }}
-          {{- end }}
-    {{- end }}
+                  number: {{ .Values.service.port }}
 {{- end }}

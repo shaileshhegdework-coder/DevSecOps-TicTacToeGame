@@ -1,15 +1,21 @@
+# templates/service.yaml
+# A Service gives Pods a stable network identity — Pods are ephemeral (IPs change on restart),
+# the Service's ClusterIP does NOT change, so other things in the cluster can reliably find it.
+
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "tic-tac-toe-helm.fullname" . }}
+  name: {{ include "tic-tac-toe.name" . }}
   labels:
-    {{- include "tic-tac-toe-helm.labels" . | nindent 4 }}
+    {{- include "tic-tac-toe.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
+    - port: {{ .Values.service.port }}             # port OTHER things use to reach this Service
+      targetPort: {{ .Values.service.targetPort }}  # port forwarded to on the actual Pod/container
       protocol: TCP
       name: http
   selector:
-    {{- include "tic-tac-toe-helm.selectorLabels" . | nindent 4 }}
+    {{- include "tic-tac-toe.labels" . | nindent 4 }}
+    # This selector is how the Service finds which Pods to send traffic to —
+    # it must match the Pod labels set in deployment.yaml's template.metadata.labels.

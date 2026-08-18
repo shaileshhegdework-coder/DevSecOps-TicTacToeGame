@@ -1,24 +1,14 @@
-# templates/deployment.yaml
-# A Deployment manages a set of identical Pods and keeps the desired replica count running.
-
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "tic-tac-toe.name" . }}
   labels:
     {{- include "tic-tac-toe.labels" . | nindent 4 }}
-    # nindent 4 = insert a newline then indent the included block by 4 spaces —
-    # required because YAML is indentation-sensitive and `include` just returns raw text.
 spec:
   replicas: {{ .Values.replicaCount }}
-
   selector:
     matchLabels:
       {{- include "tic-tac-toe.labels" . | nindent 6 }}
-    # CRITICAL: selector.matchLabels MUST match template.metadata.labels below,
-    # or the Deployment won't know which Pods belong to it. This is immutable after creation —
-    # changing it later requires deleting and recreating the Deployment.
-
   template:
     metadata:
       labels:
@@ -28,12 +18,8 @@ spec:
         - name: {{ include "tic-tac-toe.name" . }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-
           ports:
             - containerPort: {{ .Values.service.targetPort }}
-            # This just DOCUMENTS the port for humans/tools — it doesn't actually open the port.
-            # The container listens on this port regardless; this is metadata only.
-
           resources:
             limits:
               cpu: {{ .Values.resources.limits.cpu | quote }}
@@ -41,16 +27,12 @@ spec:
             requests:
               cpu: {{ .Values.resources.requests.cpu | quote }}
               memory: {{ .Values.resources.requests.memory | quote }}
-            # `| quote` wraps the value in quotes — CPU/memory values like "0.5" or "512Mi"
-            # must be strings in the rendered YAML, not bare numbers.
-
           livenessProbe:
             httpGet:
               path: {{ .Values.probes.liveness.path }}
               port: {{ .Values.service.targetPort }}
             initialDelaySeconds: {{ .Values.probes.liveness.initialDelaySeconds }}
             periodSeconds: {{ .Values.probes.liveness.periodSeconds }}
-
           readinessProbe:
             httpGet:
               path: {{ .Values.probes.readiness.path }}

@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: tic-tac-toe
-        image: docker.io/shaileshhegde19/tic-tac-toe:sha-cc63214c12dec005c838bb26425fde6f882e8a38
+        image: docker.io/shaileshhegde19/tic-tac-toe:sha-0c9218da5e925f89ddb8222600f3d4bda7a761f0
           imagePullPolicy: Always
 
           ports:

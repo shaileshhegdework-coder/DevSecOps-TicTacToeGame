@@ -1,24 +1,13 @@
-apiVersion: v2
-name: tic-tac-toe-helm
-description: A Helm chart for Kubernetes
+# Chart.yaml
+# This file identifies the chart itself — think of it as the "package.json" for Helm.
+# Helm reads this before anything else to know the chart's name, type, and versioning.
 
-# A chart can be either an 'application' or a 'library' chart.
-#
-# Application charts are a collection of templates that can be packaged into versioned archives
-# to be deployed.
-#
-# Library charts provide useful utilities or functions for the chart developer. They're included as
-# a dependency of application charts to inject those utilities and functions into the rendering
-# pipeline. Library charts do not define any templates and therefore cannot be deployed.
-type: application
+apiVersion: v2          # v2 = modern Helm 3 chart format (v1 was legacy Helm 2, don't use it)
+name: tic-tac-toe       # Name of the chart — used in `helm install <name>` commands
+description: A Helm chart for deploying the Tic Tac Toe application
+type: application        # "application" = deployable app chart. "library" = shared helper chart, not deployable on its own
 
-# This is the chart version. This version number should be incremented each time you make changes
-# to the chart and its templates, including the app version.
-# Versions are expected to follow Semantic Versioning (https://semver.org/)
-version: 0.1.0
-
-# This is the version number of the application being deployed. This version number should be
-# incremented each time you make changes to the application. Versions are not expected to
-# follow Semantic Versioning. They should reflect the version the application is using.
-# It is recommended to use it with quotes.
-appVersion: "1.16.0"
+# --- Versioning: these two numbers mean DIFFERENT things, orgs get this wrong constantly ---
+version: 0.1.0          # CHART version — bump this when YOU change the templates/structure of the chart
+appVersion: "1.0.0"      # APP version — bump this when the underlying application/image changes
+                          # (they don't have to move together — you can fix a chart bug without a new app release)

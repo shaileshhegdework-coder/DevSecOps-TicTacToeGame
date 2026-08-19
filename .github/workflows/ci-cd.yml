@@ -1,104 +1,77 @@
 name: CI/CD Pipeline
-
 on:
   push:
     branches: [ main ]
     paths-ignore:
-      - 'kubernetes/deployment.yaml'
-
+      - 'tic-tac-toe-helm/values.yaml'   # 👈 changed: ignore the file OUR bot commits to, prevents loop
   pull_request:
     branches: [ main ]
-
 permissions:
   contents: write
-
 jobs:
-
   test:
     name: Unit Testing
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
       - run: npm ci
       - run: npm test || echo "No tests found"
-
 
   lint:
     name: Static Code Analysis
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
       - run: npm ci
       - run: npm run lint
-
 
   build:
     name: Build
     runs-on: ubuntu-latest
-
     needs: [test, lint]
-
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
       - run: npm ci
       - run: npm run build
-
       - uses: actions/upload-artifact@v4
         with:
           name: build-artifacts
           path: dist/
 
-
   docker:
     name: Docker Build and Push
     runs-on: ubuntu-latest
-
     needs: [build]
-
     env:
       IMAGE_NAME: shaileshhegde19/tic-tac-toe
-
     outputs:
       image_tag: ${{ steps.set_output.outputs.image_tag }}
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Download build artifacts
         uses: actions/download-artifact@v4
         with:
           name: build-artifacts
           path: dist/
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -108,7 +81,6 @@ jobs:
             type=sha,format=long
             type=ref,event=branch
             type=raw,value=latest
-
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
@@ -116,62 +88,56 @@ jobs:
           push: false
           load: true
           tags: ${{ steps.meta.outputs.tags }}
-
       - name: Trivy scan
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
           exit-code: '0'
-
       - name: Push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: ${{ steps.meta.outputs.tags }}
-
       - name: Set image tag
         id: set_output
         run: |
           echo "image_tag=sha-${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
-
-  update-k8s:
-    name: Update Kubernetes Deployment
+  update-helm-values:
+    name: Update Helm values.yaml
     runs-on: ubuntu-latest
-
     needs: [docker]
-
     if: github.ref == 'refs/heads/main'
-
     steps:
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
 
-      - name: Update deployment image
+      - name: Install yq
         run: |
-          NEW_IMAGE="docker.io/shaileshhegde19/tic-tac-toe:sha-${GITHUB_SHA}"
+          sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          sudo chmod +x /usr/local/bin/yq
 
-          sed -i "s|^[[:space:]]*image:.*|        image: ${NEW_IMAGE}|g" \
-            kubernetes/deployment.yaml
-
-          echo "Updated image:"
-          echo "$NEW_IMAGE"
-
-      - name: Show deployment change
+      - name: Update image tag in values.yaml
         run: |
-          git diff -- kubernetes/deployment.yaml
+          yq -i '.image.tag = "sha-${{ github.sha }}"' tic-tac-toe-helm/values.yaml
+          echo "Updated values.yaml:"
+          cat tic-tac-toe-helm/values.yaml
 
-      - name: Commit deployment change
+      - name: Commit and push updated values.yaml
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-
-          git add kubernetes/deployment.yaml
-
-          git commit \
-            -m "Update image to ${GITHUB_SHA} [skip ci]" \
-            || echo "No changes to commit"
-
+          git config user.name "tic-tac-toe-ci-bot[bot]"
+          git config user.email "tic-tac-toe-ci-bot[bot]@users.noreply.github.com"
+          git add tic-tac-toe-helm/values.yaml
+          git commit -m "Update image tag to sha-${{ github.sha }} [skip ci]" || echo "No changes to commit"
           git push

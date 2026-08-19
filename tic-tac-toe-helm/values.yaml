@@ -13,47 +13,43 @@ replicaCount: 3
 
 # --- Container image settings ---
 image:
-  repository: docker.io/shaileshhegde19/tic-tac-toe   # image name WITHOUT the tag
-  tag: "sha-f28a541878cbb88f7bed745f98d9590d37ae3ad1"   # specific version to deploy
+  repository: docker.io/shaileshhegde19/tic-tac-toe # image name WITHOUT the tag
+  tag: "sha-803c1f48053f05217a8851149ab9d30e227241c3" # specific version to deploy
   # Best practice: use immutable tags (a git SHA, like above, or a semver like v1.2.3).
   # Avoid "latest" — it's not reproducible; you can't tell which code is actually running.
   pullPolicy: Always
   # Always   = re-check registry every time pod starts (safe for mutable/shared tags)
   # IfNotPresent = use cached local image if it exists (faster, fine for immutable tags)
-
 # --- Service: how traffic reaches the pods INSIDE the cluster ---
 service:
-  type: ClusterIP     # ClusterIP = internal only. NodePort/LoadBalancer = externally reachable.
-  port: 80             # port the Service listens on
-  targetPort: 80       # port the CONTAINER actually listens on (must match app's actual listen port)
-
+  type: ClusterIP # ClusterIP = internal only. NodePort/LoadBalancer = externally reachable.
+  port: 80 # port the Service listens on
+  targetPort: 80 # port the CONTAINER actually listens on (must match app's actual listen port)
 # --- Ingress: how traffic reaches the Service from OUTSIDE the cluster ---
 ingress:
   enabled: true
-  className: nginx           # which ingress controller handles this (must be installed in the cluster)
-  host: tic-tac-toe.local     # domain name routed to this app
+  className: nginx # which ingress controller handles this (must be installed in the cluster)
+  host: tic-tac-toe.local # domain name routed to this app
   path: /
-  pathType: Prefix           # Prefix = matches "/" and everything under it. Exact = must match precisely.
-
+  pathType: Prefix # Prefix = matches "/" and everything under it. Exact = must match precisely.
 # --- Resource requests/limits: prevents one pod from starving the whole node ---
 resources:
-  limits:                    # HARD CEILING — pod gets killed/throttled if it exceeds this
+  limits: # HARD CEILING — pod gets killed/throttled if it exceeds this
     cpu: "0.5"
     memory: "512Mi"
-  requests:                  # what the pod RESERVES — used by the scheduler to decide which node has room
+  requests: # what the pod RESERVES — used by the scheduler to decide which node has room
     cpu: "0.2"
     memory: "256Mi"
   # Rule of thumb: requests = normal steady-state usage, limits = safety ceiling for spikes.
   # If requests are too high, you'll waste cluster capacity. Too low, and the scheduler
   # over-packs nodes and you get evictions under real load.
-
 # --- Health checks: how Kubernetes knows if the app is actually working ---
 probes:
-  liveness:                          # "Is the app alive, or should it be restarted?"
+  liveness: # "Is the app alive, or should it be restarted?"
     path: /
-    initialDelaySeconds: 30          # wait this long after container start before first check
-    periodSeconds: 10                # then check every 10s
-  readiness:                         # "Is the app ready to receive traffic RIGHT NOW?"
+    initialDelaySeconds: 30 # wait this long after container start before first check
+    periodSeconds: 10 # then check every 10s
+  readiness: # "Is the app ready to receive traffic RIGHT NOW?"
     path: /
     initialDelaySeconds: 5
     periodSeconds: 5

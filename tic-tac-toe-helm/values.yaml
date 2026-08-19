@@ -14,7 +14,7 @@ replicaCount: 3
 # --- Container image settings ---
 image:
   repository: docker.io/shaileshhegde19/tic-tac-toe # image name WITHOUT the tag
-  tag: "sha-803c1f48053f05217a8851149ab9d30e227241c3" # specific version to deploy
+  tag: "sha-d6c3444441e87bb9d56b1480071eb7176eef74f9" # specific version to deploy
   # Best practice: use immutable tags (a git SHA, like above, or a semver like v1.2.3).
   # Avoid "latest" — it's not reproducible; you can't tell which code is actually running.
   pullPolicy: Always
@@ -40,9 +40,9 @@ resources:
   requests: # what the pod RESERVES — used by the scheduler to decide which node has room
     cpu: "0.2"
     memory: "256Mi"
-  # Rule of thumb: requests = normal steady-state usage, limits = safety ceiling for spikes.
-  # If requests are too high, you'll waste cluster capacity. Too low, and the scheduler
-  # over-packs nodes and you get evictions under real load.
+    # Rule of thumb: requests = normal steady-state usage, limits = safety ceiling for spikes.
+    # If requests are too high, you'll waste cluster capacity. Too low, and the scheduler
+    # over-packs nodes and you get evictions under real load.
 # --- Health checks: how Kubernetes knows if the app is actually working ---
 probes:
   liveness: # "Is the app alive, or should it be restarted?"
